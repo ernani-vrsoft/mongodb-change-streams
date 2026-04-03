@@ -1,0 +1,46 @@
+services:
+  mongodb-principal:
+    image: mongo:7
+    container_name: mongodb-principal
+    restart: unless-stopped
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    ports:
+      - "27010:27017"
+
+  mongo-rs-init:
+    image: mongo:7
+    depends_on:
+      - mongodb-principal
+    restart: "no"
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: >
+      "
+      sleep 5;
+      mongosh --host mongodb-principal --port 27017 --eval '
+        try {
+          rs.status();
+          print(\"Replica set ja inicializado\");
+        } catch (e) {
+          rs.initiate({
+            _id: \"rs0\",
+            members: [
+              { _id: 0, host: \"localhost:27017\" }
+            ]
+          });
+        }
+      ';
+      "
+
+  mongodb-filho-1:
+    image: mongo:7
+    container_name: mongodb-filho-1
+    restart: unless-stopped
+    ports:
+      - "27021:27017"
+
+  mongodb-filho-2:
+    image: mongo:7
+    container_name: mongodb-filho-2
+    restart: unless-stopped
+    ports:
+      - "27022:27017"
