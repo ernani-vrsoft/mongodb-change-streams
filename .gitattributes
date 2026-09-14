@@ -1,0 +1,12 @@
+# Define como o Git trata o conteúdo dos arquivos; não controla o que é ignorado.
+# Usa LF nos arquivos de texto para manter compatibilidade com Linux e evitar
+# diferenças de fim de linha entre máquinas. text=auto detecta arquivos de texto.
+* text=auto eol=lf
+
+# Scripts PowerShell e batch usam CRLF na cópia local, padrão do Windows.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Executáveis são binários: o Git não converte seus fins de linha.
+# Esta regra não impede o versionamento; as exclusões ficam no .gitignore.
+*.exe binary

@@ -1,46 +1,168 @@
+# Ambiente de teste da substituicao do Replica Set do PDV.
+#
+#   mongo-pai   MongoDB da nuvem, unico no em replica set (precisa de oplog
+#               para o change stream funcionar). Recebe as escritas.
+#   mongo-pdv1  MongoDB local do PDV 1, standalone, somente leitura pelo PDV.
+#   mongo-pdv2  MongoDB local do PDV 2, standalone.
+#   vrsync-pdv1 Servico de replicacao do PDV 1 (nuvem -> local).
+#   vrsync-pdv2 Servico de replicacao do PDV 2 (nuvem -> local).
+#
+# As duas redes existem para o teste de indisponibilidade: derrubar a
+# comunicacao de um PDV com a nuvem e desconectar o vrsync daquele PDV da rede
+# `nuvem`, sem tirar o Mongo local do ar.
+#
+#   docker network disconnect mongodb-change-streams_nuvem vrsync-pdv2
+#   docker network connect    mongodb-change-streams_nuvem vrsync-pdv2
+
+name: mongodb-change-streams
+
 services:
-  mongodb-principal:
+  mongo-pai:
     image: mongo:7
-    container_name: mongodb-principal
+    container_name: mongo-pai
     restart: unless-stopped
-    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all" ]
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --oplogSize
+      - ${OPLOG_SIZE:-128}
     ports:
       - "27010:27017"
+    networks:
+      - nuvem
+    healthcheck:
+      # Fica saudavel somente depois do rs.initiate: e o que os vrsync esperam.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "rs.status().ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
 
   mongo-rs-init:
     image: mongo:7
-    depends_on:
-      - mongodb-principal
+    container_name: mongo-rs-init
     restart: "no"
-    entrypoint: [ "/bin/bash", "-c" ]
-    command: >
-      "
-      sleep 5;
-      mongosh --host mongodb-principal --port 27017 --eval '
-        try {
-          rs.status();
-          print(\"Replica set ja inicializado\");
-        } catch (e) {
-          rs.initiate({
-            _id: \"rs0\",
-            members: [
-              { _id: 0, host: \"localhost:27017\" }
-            ]
-          });
-        }
-      ';
-      "
+    depends_on:
+      - mongo-pai
+    networks:
+      - nuvem
+    entrypoint:
+      - bash
+      - -c
+      - |
+        until mongosh --host mongo-pai --quiet --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do
+          echo "aguardando mongo-pai..."; sleep 1
+        done
+        mongosh --host mongo-pai --quiet --eval '
+          try {
+            rs.status();
+            print("replica set ja inicializado");
+          } catch (e) {
+            printjson(rs.initiate({
+              _id: "rs0",
+              members: [{ _id: 0, host: "mongo-pai:27017" }]
+            }));
+          }
+        '
 
-  mongodb-filho-1:
+  mongo-pdv1:
     image: mongo:7
-    container_name: mongodb-filho-1
+    container_name: mongo-pdv1
     restart: unless-stopped
+    command: ["mongod", "--bind_ip_all"]
     ports:
       - "27021:27017"
+    networks:
+      - loja
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ping:1}).ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
 
-  mongodb-filho-2:
+  mongo-pdv2:
     image: mongo:7
-    container_name: mongodb-filho-2
+    container_name: mongo-pdv2
     restart: unless-stopped
+    command: ["mongod", "--bind_ip_all"]
     ports:
       - "27022:27017"
+    networks:
+      - loja
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ping:1}).ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  vrsync-pdv1:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+    image: vrsync:dev
+    container_name: vrsync-pdv1
+    restart: unless-stopped
+    depends_on:
+      mongo-pai:
+        condition: service_healthy
+      mongo-pdv1:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+      VRSYNC_INSTANCE_ID: pdv1
+      VRSYNC_SOURCE_URI: mongodb://mongo-pai:27017/?directConnection=true
+      VRSYNC_TARGET_URI: mongodb://mongo-pdv1:27017/?directConnection=true
+      VRSYNC_DATABASE: pdv
+      VRSYNC_HTTP_ADDR: 0.0.0.0:28299
+      # Carga completa apenas na primeira execucao e nos horarios agendados.
+      VRSYNC_FULL_LOAD_ON_START: auto
+      VRSYNC_UPDATE_MODE: ${UPDATE_MODE_PDV1:-lookup}
+      VRSYNC_FULL_LOAD_SCHEDULE: ${FULL_LOAD_SCHEDULE:-03:00}
+      VRSYNC_FULL_LOAD_JITTER: ${FULL_LOAD_JITTER:-0}
+      VRSYNC_RETRY_INTERVAL: 5s
+      VRSYNC_VERBOSE: ${VERBOSE:-false}
+    ports:
+      - "28291:28299"
+    networks:
+      - nuvem
+      - loja
+
+  vrsync-pdv2:
+    image: vrsync:dev
+    container_name: vrsync-pdv2
+    restart: unless-stopped
+    depends_on:
+      vrsync-pdv1:
+        condition: service_started
+      mongo-pai:
+        condition: service_healthy
+      mongo-pdv2:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+      VRSYNC_INSTANCE_ID: pdv2
+      VRSYNC_SOURCE_URI: mongodb://mongo-pai:27017/?directConnection=true
+      VRSYNC_TARGET_URI: mongodb://mongo-pdv2:27017/?directConnection=true
+      VRSYNC_DATABASE: pdv
+      VRSYNC_HTTP_ADDR: 0.0.0.0:28299
+      VRSYNC_FULL_LOAD_ON_START: auto
+      VRSYNC_FULL_LOAD_SCHEDULE: ${FULL_LOAD_SCHEDULE:-03:00}
+      VRSYNC_FULL_LOAD_JITTER: ${FULL_LOAD_JITTER:-0}
+      VRSYNC_RETRY_INTERVAL: 5s
+      VRSYNC_VERBOSE: ${VERBOSE:-false}
+      # O PDV 2 roda no modo delta de proposito: assim os cenarios comparam a
+      # nuvem com um PDV em cada modo de update (pdv1 = lookup, pdv2 = delta) e
+      # os dois caminhos ficam cobertos pelos mesmos testes.
+      VRSYNC_UPDATE_MODE: ${UPDATE_MODE_PDV2:-delta}
+    ports:
+      - "28292:28299"
+    networks:
+      - nuvem
+      - loja
+
+networks:
+  nuvem:
+  loja:
