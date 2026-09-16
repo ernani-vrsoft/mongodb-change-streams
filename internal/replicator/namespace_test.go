@@ -16,32 +16,32 @@ func TestFilterAllows(t *testing.T) {
 		esperado bool
 	}{
 		{nome: "sem filtro aceita", colecao: "produtos", esperado: true},
-		{nome: "colecao vazia recusada", colecao: "", esperado: false},
-		{nome: "colecao de sistema recusada", colecao: "system.views", esperado: false},
+		{nome: "coleção vazia recusada", colecao: "", esperado: false},
+		{nome: "coleção de sistema recusada", colecao: "system.views", esperado: false},
 		{
-			nome:    "excluida recusada",
+			nome:    "excluída recusada",
 			exclude: []string{"scanntechvenda"},
 			colecao: "scanntechvenda",
 		},
 		{
-			nome:     "nao excluida aceita",
+			nome:     "não excluída aceita",
 			exclude:  []string{"scanntechvenda"},
 			colecao:  "produtos",
 			esperado: true,
 		},
 		{
-			nome:     "com lista de inclusao so aceita quem esta nela",
+			nome:     "com lista de inclusão só aceita quem está nela",
 			include:  []string{"produtos"},
 			colecao:  "produtos",
 			esperado: true,
 		},
 		{
-			nome:    "com lista de inclusao recusa quem nao esta",
+			nome:    "com lista de inclusão recusa quem não está",
 			include: []string{"produtos"},
 			colecao: "operadores",
 		},
 		{
-			nome:    "exclusao vence a inclusao",
+			nome:    "exclusão vence a inclusão",
 			include: []string{"produtos"},
 			exclude: []string{"produtos"},
 			colecao: "produtos",
@@ -60,7 +60,7 @@ func TestFilterAllows(t *testing.T) {
 
 func TestFilterPipelineSemFiltroEVazio(t *testing.T) {
 	if got := len(newFilter(nil, nil).pipeline()); got != 0 {
-		t.Errorf("pipeline sem filtro deveria ser vazia, tem %d estagio(s)", got)
+		t.Errorf("pipeline sem filtro deveria ser vazia, tem %d estágio(s)", got)
 	}
 }
 
@@ -68,7 +68,7 @@ func TestFilterPipelineSemFiltroEVazio(t *testing.T) {
 func TestFilterPipelinePreservaEventosSemColecao(t *testing.T) {
 	pipeline := newFilter(nil, []string{"scanntechvenda"}).pipeline()
 	if len(pipeline) != 1 {
-		t.Fatalf("esperado 1 estagio, obtido %d", len(pipeline))
+		t.Fatalf("esperado 1 estágio, obtido %d", len(pipeline))
 	}
 
 	bruto, err := bson.MarshalExtJSON(pipeline[0], false, false)
@@ -79,7 +79,7 @@ func TestFilterPipelinePreservaEventosSemColecao(t *testing.T) {
 	texto := string(bruto)
 	for _, esperado := range []string{"dropDatabase", "invalidate", "scanntechvenda", "$nin"} {
 		if !strings.Contains(texto, esperado) {
-			t.Errorf("pipeline nao menciona %q: %s", esperado, texto)
+			t.Errorf("pipeline não menciona %q: %s", esperado, texto)
 		}
 	}
 }

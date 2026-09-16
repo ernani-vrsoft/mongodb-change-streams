@@ -1,0 +1,133 @@
+# TESTE: cinco PDVs contra uma nuvem de verdade (MongoDB Atlas).
+#
+# Diferente do docker-compose.yml, que sobe uma nuvem falsa em container, aqui
+# a origem é o Atlas real — com internet, TLS e autenticação —, e cada PDV é um
+# par (Mongo local + vrsync) como numa loja com várias máquinas. Serve para
+# medir quanto tempo a carga inicial leva e quanto tempo uma alteração demora a
+# chegar nos PDVs.
+#
+# A origem é a mesma do vrsync.env: o teste sobe com o `SOURCE_URI` que o
+# usuário já configurou ali, sem um segundo arquivo de configuração. Por isso
+# todo comando leva `--env-file vrsync.env`, inclusive o `down`.
+#
+# Use um usuário **somente-leitura** (role `read` no banco replicado): o vrsync
+# nunca escreve na nuvem. E não acrescente `directConnection=true` numa URI
+# `mongodb+srv://`, que fixa um nó e quebra a descoberta por DNS.
+#
+#   docker compose --env-file vrsync.env -f docker-compose.teste-atlas.yml up -d --build
+#   docker compose --env-file vrsync.env -f docker-compose.teste-atlas.yml down -v
+#
+# Os PDVs sobem sozinhos e fazem a carga inicial. Acompanhe por
+# `docker exec atlas-vrsync-pdv1 vrsync -status` ou pelas portas 28301-28305.
+
+name: vrsync-atlas
+
+x-mongo-pdv: &mongo-pdv
+  image: mongo:7
+  restart: unless-stopped
+  command: ["mongod", "--bind_ip_all"]
+  networks: [loja]
+  healthcheck:
+    test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ping:1}).ok"]
+    interval: 3s
+    timeout: 5s
+    retries: 20
+
+x-vrsync: &vrsync
+  image: vrsync:dev
+  restart: unless-stopped
+  networks: [loja]
+  environment: &vrsync-env
+    TZ: ${TZ:-America/Sao_Paulo}
+    # Vindos do vrsync.env: é o que o usuário informou para a máquina dele.
+    # O TARGET_URI não vem, porque cada PDV aqui grava no Mongo do seu container.
+    VRSYNC_SOURCE_URI: ${SOURCE_URI:?informe SOURCE_URI no vrsync.env e rode com --env-file vrsync.env}
+    VRSYNC_DATABASE: ${DATABASE:-pdv}
+    VRSYNC_HTTP_ADDR: 0.0.0.0:28299
+    VRSYNC_FULL_LOAD_ON_START: auto
+    # Sem carga agendada durante a medicao: uma carga no meio do teste
+    # atrapalharia a leitura dos numeros.
+    VRSYNC_FULL_LOAD_SCHEDULE: "off"
+    # Fixos, e não lidos do vrsync.env: o Atlas M0 tem teto de conexões e banda
+    # compartilhada, e são 5 PDVs batendo juntos. Dois workers por PDV pesam
+    # menos na origem; a pool precisa caber os workers + o change stream.
+    VRSYNC_FULL_LOAD_WORKERS: "2"
+    VRSYNC_MAX_POOL_SIZE: "6"
+    VRSYNC_RETRY_INTERVAL: 5s
+    VRSYNC_VERBOSE: ${VERBOSE:-false}
+
+services:
+  mongo-pdv1:
+    <<: *mongo-pdv
+    container_name: atlas-mongo-pdv1
+    ports: ["27101:27017"]
+  mongo-pdv2:
+    <<: *mongo-pdv
+    container_name: atlas-mongo-pdv2
+    ports: ["27102:27017"]
+  mongo-pdv3:
+    <<: *mongo-pdv
+    container_name: atlas-mongo-pdv3
+    ports: ["27103:27017"]
+  mongo-pdv4:
+    <<: *mongo-pdv
+    container_name: atlas-mongo-pdv4
+    ports: ["27104:27017"]
+  mongo-pdv5:
+    <<: *mongo-pdv
+    container_name: atlas-mongo-pdv5
+    ports: ["27105:27017"]
+
+  vrsync-pdv1:
+    <<: *vrsync
+    build: { context: ., args: { VERSION: "${VERSION:-atlas}" } }
+    container_name: atlas-vrsync-pdv1
+    depends_on: { mongo-pdv1: { condition: service_healthy } }
+    environment:
+      <<: *vrsync-env
+      VRSYNC_INSTANCE_ID: pdv1
+      VRSYNC_TARGET_URI: mongodb://atlas-mongo-pdv1:27017/?directConnection=true
+    ports: ["28301:28299"]
+
+  vrsync-pdv2:
+    <<: *vrsync
+    container_name: atlas-vrsync-pdv2
+    depends_on: { mongo-pdv2: { condition: service_healthy } }
+    environment:
+      <<: *vrsync-env
+      VRSYNC_INSTANCE_ID: pdv2
+      VRSYNC_TARGET_URI: mongodb://atlas-mongo-pdv2:27017/?directConnection=true
+    ports: ["28302:28299"]
+
+  vrsync-pdv3:
+    <<: *vrsync
+    container_name: atlas-vrsync-pdv3
+    depends_on: { mongo-pdv3: { condition: service_healthy } }
+    environment:
+      <<: *vrsync-env
+      VRSYNC_INSTANCE_ID: pdv3
+      VRSYNC_TARGET_URI: mongodb://atlas-mongo-pdv3:27017/?directConnection=true
+    ports: ["28303:28299"]
+
+  vrsync-pdv4:
+    <<: *vrsync
+    container_name: atlas-vrsync-pdv4
+    depends_on: { mongo-pdv4: { condition: service_healthy } }
+    environment:
+      <<: *vrsync-env
+      VRSYNC_INSTANCE_ID: pdv4
+      VRSYNC_TARGET_URI: mongodb://atlas-mongo-pdv4:27017/?directConnection=true
+    ports: ["28304:28299"]
+
+  vrsync-pdv5:
+    <<: *vrsync
+    container_name: atlas-vrsync-pdv5
+    depends_on: { mongo-pdv5: { condition: service_healthy } }
+    environment:
+      <<: *vrsync-env
+      VRSYNC_INSTANCE_ID: pdv5
+      VRSYNC_TARGET_URI: mongodb://atlas-mongo-pdv5:27017/?directConnection=true
+    ports: ["28305:28299"]
+
+networks:
+  loja:

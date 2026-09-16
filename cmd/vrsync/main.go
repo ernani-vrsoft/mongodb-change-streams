@@ -4,12 +4,14 @@
 //
 // Uso:
 //
-//	vrsync                 roda o serviço
-//	vrsync -status         mostra o estado do serviço em execução
-//	c        pede uma carga completa ao serviço em execução
-//	vrsync -reset          apaga o checkpoint (a próxima execução faz carga completa)
-//	vrsync -config CAMINHO usa outro arquivo de configuração
-//	vrsync -versao         mostra a versão
+//	vrsync          roda o serviço
+//	vrsync -status  mostra o estado do serviço em execução
+//	vrsync -carga   pede uma carga completa ao serviço em execução
+//	vrsync -reset   apaga o checkpoint (a próxima execução faz carga completa)
+//	vrsync -versao  mostra a versão
+//
+// A configuração vem do vrsync.env, procurado na pasta atual e depois ao lado
+// do executável, e das variáveis VRSYNC_*, que prevalecem sobre o arquivo.
 package main
 
 import (
@@ -41,7 +43,6 @@ var version = "dev"
 
 func main() {
 	var (
-		configPath  = flag.String("config", "", "caminho do arquivo de configuração (padrão: vrsync.env ao lado do executável)")
 		showStatus  = flag.Bool("status", false, "consulta o serviço em execução e mostra o estado")
 		fullLoad    = flag.Bool("carga", false, "pede uma carga completa ao serviço em execução")
 		reset       = flag.Bool("reset", false, "apaga o checkpoint: a próxima execução fará carga completa")
@@ -54,7 +55,7 @@ func main() {
 		return
 	}
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -83,8 +84,8 @@ func run(cfg config.Config) error {
 	if cfg.Path != "" {
 		log.Infof("configuracao lida de %s", cfg.Path)
 	} else {
-		log.Warnf("nenhum vrsync.env encontrado: usando so as variaveis de ambiente e os padroes. " +
-			"Rode o vrsync na pasta do arquivo ou informe -config caminho.env")
+		log.Warnf("nenhum vrsync.env encontrado na pasta atual " +
+			"usando so as variaveis de ambiente e os padroes")
 	}
 
 	// Avisa ao encerrar ou parar o serviço, o replicador

@@ -1,18 +1,22 @@
-# Ambiente de teste da substituicao do Replica Set do PDV.
+# Ambiente de teste da substituição do Replica Set do PDV.
 #
-#   mongo-pai   MongoDB da nuvem, unico no em replica set (precisa de oplog
+#   mongo-pai   MongoDB da nuvem, único nó em replica set (precisa de oplog
 #               para o change stream funcionar). Recebe as escritas.
 #   mongo-pdv1  MongoDB local do PDV 1, standalone, somente leitura pelo PDV.
 #   mongo-pdv2  MongoDB local do PDV 2, standalone.
-#   vrsync-pdv1 Servico de replicacao do PDV 1 (nuvem -> local).
-#   vrsync-pdv2 Servico de replicacao do PDV 2 (nuvem -> local).
+#   vrsync-pdv1 Serviço de replicação do PDV 1 (nuvem -> local).
+#   vrsync-pdv2 Serviço de replicação do PDV 2 (nuvem -> local).
 #
 # As duas redes existem para o teste de indisponibilidade: derrubar a
-# comunicacao de um PDV com a nuvem e desconectar o vrsync daquele PDV da rede
+# comunicação de um PDV com a nuvem e desconectar o vrsync daquele PDV da rede
 # `nuvem`, sem tirar o Mongo local do ar.
 #
 #   docker network disconnect mongodb-change-streams_nuvem vrsync-pdv2
 #   docker network connect    mongodb-change-streams_nuvem vrsync-pdv2
+#
+# Enquanto o container está fora da rede, a porta publicada dele para de
+# responder no host: consulte o estado por dentro, com
+# `docker exec vrsync-pdv2 vrsync -status`, que é o que os cenários fazem.
 
 name: mongodb-change-streams
 
@@ -33,7 +37,7 @@ services:
     networks:
       - nuvem
     healthcheck:
-      # Fica saudavel somente depois do rs.initiate: e o que os vrsync esperam.
+      # Fica disponível somente depois do rs.initiate: é o que os vrsync esperam.
       test: ["CMD", "mongosh", "--quiet", "--eval", "rs.status().ok"]
       interval: 3s
       timeout: 5s
@@ -117,7 +121,7 @@ services:
       VRSYNC_TARGET_URI: mongodb://mongo-pdv1:27017/?directConnection=true
       VRSYNC_DATABASE: pdv
       VRSYNC_HTTP_ADDR: 0.0.0.0:28299
-      # Carga completa apenas na primeira execucao e nos horarios agendados.
+      # Carga completa apenas na primeira execução e nos horários agendados.
       VRSYNC_FULL_LOAD_ON_START: auto
       VRSYNC_UPDATE_MODE: ${UPDATE_MODE_PDV1:-lookup}
       VRSYNC_FULL_LOAD_SCHEDULE: ${FULL_LOAD_SCHEDULE:-03:00}
@@ -153,7 +157,7 @@ services:
       VRSYNC_FULL_LOAD_JITTER: ${FULL_LOAD_JITTER:-0}
       VRSYNC_RETRY_INTERVAL: 5s
       VRSYNC_VERBOSE: ${VERBOSE:-false}
-      # O PDV 2 roda no modo delta de proposito: assim os cenarios comparam a
+      # O PDV 2 roda no modo delta de propósito: assim os cenários comparam a
       # nuvem com um PDV em cada modo de update (pdv1 = lookup, pdv2 = delta) e
       # os dois caminhos ficam cobertos pelos mesmos testes.
       VRSYNC_UPDATE_MODE: ${UPDATE_MODE_PDV2:-delta}

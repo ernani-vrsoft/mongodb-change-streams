@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// O suporte precisa poder prever quando a carga daquele PDV roda, entao o
-// deslocamento tem que sair sempre igual para a mesma maquina.
+// O suporte precisa poder prever quando a carga daquele PDV roda, então o
+// deslocamento tem que sair sempre igual para a mesma máquina.
 func TestWithJitterEstavelPorInstancia(t *testing.T) {
 	base, err := ParseSchedule("03:00")
 	if err != nil {
@@ -37,8 +37,8 @@ func TestWithJitterDentroDaJanela(t *testing.T) {
 	}
 }
 
-// Numa loja de 20 PDVs o objetivo e nao ter todos no mesmo minuto. Nao se
-// exige unicidade perfeita, e sim espalhamento util.
+// Numa loja de 20 PDVs o objetivo é não ter todos no mesmo minuto. Não se
+// exige unicidade perfeita, e sim espalhamento útil.
 func TestWithJitterEspalhaOsPdvsDaLoja(t *testing.T) {
 	base, _ := ParseSchedule("03:00")
 	janela := time.Hour
@@ -50,7 +50,7 @@ func TestWithJitterEspalhaOsPdvsDaLoja(t *testing.T) {
 	}
 
 	if len(minutos) < 15 {
-		t.Errorf("20 PDVs cairam em apenas %d minutos distintos: %v", len(minutos), minutos)
+		t.Errorf("20 PDVs caíram em apenas %d minutos distintos: %v", len(minutos), minutos)
 	}
 	for minuto, quantos := range minutos {
 		if quantos > 3 {
@@ -67,18 +67,18 @@ func TestWithJitterDesligadoQuandoJanelaZero(t *testing.T) {
 		t.Errorf("janela zero deveria manter o deslocamento em zero, obtido %s", agenda.Offset())
 	}
 	if agenda.String() != "03:00" {
-		t.Errorf("descricao = %q, esperado %q", agenda.String(), "03:00")
+		t.Errorf("descrição = %q, esperado %q", agenda.String(), "03:00")
 	}
 }
 
-// No modo @every o intervalo conta da inicializacao, que ja difere em cada
-// maquina: aplicar jitter ali nao faria sentido.
+// No modo @every o intervalo conta da inicialização, que já difere em cada
+// máquina: aplicar jitter ali não faria sentido.
 func TestWithJitterNaoAfetaIntervalo(t *testing.T) {
 	base, _ := ParseSchedule("@every 6h")
 
 	agenda := base.WithJitter(time.Hour, "pdv-07")
 	if agenda.Offset() != 0 {
-		t.Errorf("modo @every nao deveria receber deslocamento, obtido %s", agenda.Offset())
+		t.Errorf("modo @every não deveria receber deslocamento, obtido %s", agenda.Offset())
 	}
 }
 
@@ -90,7 +90,7 @@ func TestNextRespeitaODeslocamento(t *testing.T) {
 	agora := time.Date(2026, 9, 9, 1, 0, 0, 0, time.Local)
 	proximo, ok := agenda.Next(agora)
 	if !ok {
-		t.Fatal("esperado um proximo horario")
+		t.Fatal("esperado um próximo horário")
 	}
 
 	esperado := time.Date(2026, 9, 9, 3, 0, 0, 0, time.Local).Add(offset)
@@ -99,22 +99,22 @@ func TestNextRespeitaODeslocamento(t *testing.T) {
 	}
 }
 
-// Um horario tarde somado ao jitter pode passar da meia-noite; o proximo
-// disparo tem que ser encontrado no dia seguinte, e nao pulado.
+// Um horário tarde somado ao jitter pode passar da meia-noite; o próximo
+// disparo tem que ser encontrado no dia seguinte, e não pulado.
 func TestNextComDeslocamentoQueViraODia(t *testing.T) {
 	base, err := ParseSchedule("23:50")
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
 
-	// Deslocamento forcado para 30min, sem depender do hash.
+	// Deslocamento forçado para 30min, sem depender do hash.
 	agenda := base
 	agenda.offset = 30 * time.Minute
 
 	agora := time.Date(2026, 9, 9, 23, 55, 0, 0, time.Local)
 	proximo, ok := agenda.Next(agora)
 	if !ok {
-		t.Fatal("esperado um proximo horario")
+		t.Fatal("esperado um próximo horário")
 	}
 
 	esperado := time.Date(2026, 9, 10, 0, 20, 0, 0, time.Local)
@@ -131,13 +131,13 @@ func TestNextNuncaDevolveOPassado(t *testing.T) {
 		agora := time.Date(2026, 9, 9, hora, 17, 0, 0, time.Local)
 		proximo, ok := agenda.Next(agora)
 		if !ok {
-			t.Fatalf("%02dh: esperado um proximo horario", hora)
+			t.Fatalf("%02dh: esperado um próximo horário", hora)
 		}
 		if !proximo.After(agora) {
-			t.Errorf("%02dh: Next() = %s, que nao esta no futuro", hora, proximo)
+			t.Errorf("%02dh: Next() = %s, que não está no futuro", hora, proximo)
 		}
 		if proximo.Sub(agora) > 24*time.Hour {
-			t.Errorf("%02dh: Next() = %s, mais de um dia a frente", hora, proximo)
+			t.Errorf("%02dh: Next() = %s, mais de um dia à frente", hora, proximo)
 		}
 	}
 }
@@ -148,12 +148,12 @@ func TestWithJitterDescreveAAgenda(t *testing.T) {
 
 	descricao := agenda.String()
 	if descricao == "03:00" {
-		t.Fatal("a descricao deveria mostrar o horario deslocado")
+		t.Fatal("a descrição deveria mostrar o horário deslocado")
 	}
-	// Precisa deixar claro tanto o horario efetivo quanto a janela de origem.
+	// Precisa deixar claro tanto o horário efetivo quanto a janela de origem.
 	for _, esperado := range []string{"janela de jitter de 1h", "03:00"} {
 		if !strings.Contains(descricao, esperado) {
-			t.Errorf("descricao %q nao menciona %q", descricao, esperado)
+			t.Errorf("descrição %q não menciona %q", descricao, esperado)
 		}
 	}
 }

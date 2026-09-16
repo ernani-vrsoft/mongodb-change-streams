@@ -61,7 +61,7 @@ func TestCargaNecessariaQuandoAOrigemMuda(t *testing.T) {
 				t.Fatalf("precisa = %v, esperado %v (motivo: %q)", precisa, caso.precisa, motivo)
 			}
 			if caso.mencionaAlgo != "" && !strings.Contains(motivo, caso.mencionaAlgo) {
-				t.Errorf("o motivo %q nao explica: esperava mencionar %q", motivo, caso.mencionaAlgo)
+				t.Errorf("o motivo %q não explica: esperava mencionar %q", motivo, caso.mencionaAlgo)
 			}
 		})
 	}

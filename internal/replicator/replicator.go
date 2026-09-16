@@ -191,18 +191,6 @@ func (r *Replicator) Run(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return nil
 	}
-	// O destino deve estar fora do Replica Set antes de receber escritas do VRSync.
-	var topology struct {
-		SetName string `bson:"setName"`
-		Msg     string `bson:"msg"`
-	}
-	if err := r.target.Database("admin").RunCommand(ctx, bson.D{{Key: "isMaster", Value: 1}}).Decode(&topology); err != nil {
-		return fmt.Errorf("validar topologia do destino: %w", err)
-	}
-	if topology.SetName != "" || topology.Msg == "isdbgrid" {
-		return fmt.Errorf("destino deve ser standalone: remova o Mongo Filho do replica set antes de iniciar o vrsync")
-	}
-
 	// Lê o checkpoint local para decidir de onde retomar a replicação.
 	state, err := r.store.Load(ctx)
 	if err != nil {

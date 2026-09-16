@@ -15,7 +15,7 @@ func TestParseScheduleDesligada(t *testing.T) {
 			t.Errorf("ParseSchedule(%q): esperado desligada", valor)
 		}
 		if _, ok := agenda.Next(time.Now()); ok {
-			t.Errorf("ParseSchedule(%q): agenda desligada nao deve ter proximo horario", valor)
+			t.Errorf("ParseSchedule(%q): agenda desligada não deve ter próximo horário", valor)
 		}
 	}
 }
@@ -35,22 +35,22 @@ func TestParseScheduleHorarios(t *testing.T) {
 		esperado time.Time
 	}{
 		{
-			nome:     "antes do primeiro horario do dia",
+			nome:     "antes do primeiro horário do dia",
 			agora:    time.Date(2026, 9, 8, 1, 0, 0, 0, time.Local),
 			esperado: time.Date(2026, 9, 8, 3, 0, 0, 0, time.Local),
 		},
 		{
-			nome:     "entre os dois horarios",
+			nome:     "entre os dois horários",
 			agora:    time.Date(2026, 9, 8, 10, 0, 0, 0, time.Local),
 			esperado: time.Date(2026, 9, 8, 15, 30, 0, 0, time.Local),
 		},
 		{
-			nome:     "depois do ultimo horario cai no dia seguinte",
+			nome:     "depois do último horário cai no dia seguinte",
 			agora:    time.Date(2026, 9, 8, 23, 0, 0, 0, time.Local),
 			esperado: time.Date(2026, 9, 9, 3, 0, 0, 0, time.Local),
 		},
 		{
-			nome:     "exatamente no horario agenda o proximo",
+			nome:     "exatamente no horário agenda o próximo",
 			agora:    time.Date(2026, 9, 8, 3, 0, 0, 0, time.Local),
 			esperado: time.Date(2026, 9, 8, 15, 30, 0, 0, time.Local),
 		},
@@ -60,7 +60,7 @@ func TestParseScheduleHorarios(t *testing.T) {
 		t.Run(caso.nome, func(t *testing.T) {
 			proximo, ok := agenda.Next(caso.agora)
 			if !ok {
-				t.Fatal("esperado um proximo horario")
+				t.Fatal("esperado um próximo horário")
 			}
 			if !proximo.Equal(caso.esperado) {
 				t.Errorf("Next(%s) = %s, esperado %s", caso.agora, proximo, caso.esperado)
@@ -81,7 +81,7 @@ func TestParseScheduleIntervalo(t *testing.T) {
 	agora := time.Date(2026, 9, 8, 10, 0, 0, 0, time.Local)
 	proximo, ok := agenda.Next(agora)
 	if !ok {
-		t.Fatal("esperado um proximo horario")
+		t.Fatal("esperado um próximo horário")
 	}
 	if want := agora.Add(6 * time.Hour); !proximo.Equal(want) {
 		t.Errorf("Next() = %s, esperado %s", proximo, want)

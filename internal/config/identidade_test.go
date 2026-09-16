@@ -2,8 +2,8 @@ package config
 
 import "testing"
 
-// A identidade tem que ignorar senha e parametros: girar a senha ou
-// acrescentar uma opcao na URI nao pode custar uma carga completa.
+// A identidade tem que ignorar senha e parâmetros: girar a senha ou
+// acrescentar uma opção na URI não pode custar uma carga completa.
 func TestSourceIdentityIgnoraCredencialEParametros(t *testing.T) {
 	mesmas := []string{
 		"mongodb://nuvem.vrsoft.com.br:27017/?directConnection=true",
@@ -21,7 +21,7 @@ func TestSourceIdentityIgnoraCredencialEParametros(t *testing.T) {
 	}
 }
 
-// Servidor diferente tem que dar identidade diferente: e isso que dispara a
+// Servidor diferente tem que dar identidade diferente: é isso que dispara a
 // carga completa e evita misturar dois bancos no PDV.
 func TestSourceIdentityDistingueServidores(t *testing.T) {
 	diferentes := []string{
@@ -43,7 +43,7 @@ func TestSourceIdentityDistingueServidores(t *testing.T) {
 	}
 }
 
-// A ordem dos hosts de um replica set nao muda o servidor.
+// A ordem dos hosts de um replica set não muda o servidor.
 func TestSourceIdentityIgnoraOrdemDosHosts(t *testing.T) {
 	a := SourceIdentity("mongodb://n1:27017,n2:27017,n3:27017/?replicaSet=rs0")
 	b := SourceIdentity("mongodb://n3:27017,n1:27017,n2:27017/?replicaSet=rs0")

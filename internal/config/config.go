@@ -75,15 +75,15 @@ type Config struct {
 	LogFile  string
 	Verbose  bool
 
-	// Path guarda o arquivo de configuracao realmente lido. Fica vazio quando
-	// nenhum foi encontrado e o servico roda so com ambiente e padroes.
+	// Path guarda o arquivo de configuração lido. Fica vazio quando
+	// nenhum foi encontrado e o serviço roda só com ambiente e padrões.
 	Path string
 }
 
 // Load combina arquivo, variáveis de ambiente e valores padrão.
 // Converte os tipos e reúne os erros para informar todas as opções inválidas.
-func Load(configPath string) (Config, error) {
-	file, path, err := loadFile(configPath)
+func Load() (Config, error) {
+	file, path, err := loadFile()
 	if err != nil {
 		return Config{}, err
 	}
@@ -250,22 +250,17 @@ func splitList(v string) []string {
 	return out
 }
 
-// loadFile lê pares CHAVE=valor do arquivo indicado ou de VRSYNC_CONFIG.
-// Sem caminho explícito, tenta os locais padrão; se não encontrar, retorna
-// um mapa vazio. Falha ao abrir um caminho explícito é devolvida como erro.
-func loadFile(path string) (map[string]string, string, error) {
+// loadFile lê CHAVE=valor do vrsync.env encontrado.
+// Sem nenhum arquivo, devolve um mapa vazio e o serviço segue com as
+// variáveis de ambiente; um arquivo encontrado que não abra devolve erro.
+func loadFile() (map[string]string, string, error) {
 	values := map[string]string{}
 
-	if path == "" {
-		if v := os.Getenv("VRSYNC_CONFIG"); v != "" {
-			path = v
-		} else {
-			for _, candidate := range defaultConfigPaths() {
-				if _, err := os.Stat(candidate); err == nil {
-					path = candidate
-					break
-				}
-			}
+	var path string
+	for _, candidate := range defaultConfigPaths() {
+		if _, err := os.Stat(candidate); err == nil {
+			path = candidate
+			break
 		}
 	}
 	if path == "" {
@@ -296,7 +291,7 @@ func loadFile(path string) (map[string]string, string, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, "", fmt.Errorf("ler %s: %w", path, err)
 	}
-	// Devolve o caminho usado para o servico poder informa-lo no log e no status.
+	// Devolve o caminho usado para o serviço poder informá-lo no log e no status.
 	if abs, err := filepath.Abs(path); err == nil {
 		path = abs
 	}
