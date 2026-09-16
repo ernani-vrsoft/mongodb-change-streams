@@ -15,6 +15,3 @@ vrsync.local.env
 
 # Executável temporário de debug gerado pelo VS Code/Delve.
 __debug_bin*
-
-# Cenários de teste em containers: rodam na máquina, não vão para o repositório.
-/test/
