@@ -1,2 +1,17 @@
+# Configuração da IDE e arquivo auxiliar local.
 .idea
-HELP.md
+.vscode/
+
+# Executáveis compilados na raiz; a barra inicial preserva o pacote cmd/vrsync.
+/vrsync
+/vrsync.exe
+
+# Sobras locais de configuração; o modelo versionado é o vrsync.env.
+vrsync.local.env
+
+
+# Logs gerados durante a execução.
+*.log
+
+# Executável temporário de debug gerado pelo VS Code/Delve.
+__debug_bin*
